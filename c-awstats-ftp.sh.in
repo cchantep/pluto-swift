@@ -1,0 +1,94 @@
+#! /bin/sh
+
+#####
+# Date: 2009-05-13 17:03
+# Author: Cedric Chantepie (cchantepie@corsaire.fr)
+# Version: 0.1
+# Description: Wizard script to configure awstats ftp file.
+#####
+
+AWETCDIR="@AWSTATS_CFGDIR@"
+
+while [ "$TEMPLATE" = "" -o ! -f "$TEMPLATE" ]; do
+	echo "Awstats configuration template (ex: /tmp/awstats-ftp.tmpl): "
+	read TEMPLATE
+done
+
+while [ "$DOMAIN" = "" ]; do
+	echo "Domain (ex: www.site.com) : "
+	read DOMAIN
+done
+
+FILE="$AWETCDIR/awstats.ftp-$DOMAIN.conf"
+
+if [ -f "$FILE" ]; then
+	echo "Awstats config file \"$FILE\" already exists"
+	exit
+fi
+
+while [ "$XFERLOG" = "" ]; do
+	echo "Transfer log (path to file xferlog): "
+	read XFERLOG
+done
+
+while [ "$AWDIRDATA" = "" ]; do
+	echo "Awstats dir data (ex: /var/www/www.site.com/logs/awstats): "
+	read AWDIRDATA
+done
+
+while [ "$USERNAME" = "" ]; do
+	echo "Awstats username: "
+	read USERNAME
+done
+
+# Archive data
+while [ "$RTEMPLATE" = "" -o ! -f "$RTEMPLATE" ]; do
+	echo "Path rotate script template: "
+	read RTEMPLATE
+done
+
+while [ "$ROTATEPATH" = "" ]; do
+	echo "Path to put script to rotate awstats log archive (ex : /backup/www.site.com/awstats/rotate.sh): "
+	read ROTATEPATH
+done
+
+echo "Path to awstats FTP log archive (default: $AWDIRDATA/awstats_archive.ftp-$DOMAIN.log): "
+read AWSTATS_ARCHIVE
+
+if [ "$AWSTATS_ARCHIVE" = "" ]; then
+	AWSTATS_ARCHIVE="$AWDIRDATA/awstats_archive.ftp-$DOMAIN.log"
+fi
+
+while [ "$SCRIPT_LIST" = "" ]; do
+	echo "Path to script list (ex: /backup/www.site.com/scripts.lst): "
+	read SCRIPT_LIST
+done
+
+###
+
+echo "---"
+echo "Awstats summary "
+echo "  Awstats template: $TEMPLATE"
+echo "  Domain: $DOMAIN"
+echo "  FTP log: $XFERLOG"
+echo "  Awstats dir data: $AWDIRDATA"
+echo "  Awstats username: $USERNAME"
+echo "  Generated awstats config file: $FILE"
+echo "  Awstats rotate script template: $RTEMPLATE"
+echo "  Path to rotate script: $ROTATEPATH"
+echo "  Awstats log archive: $AWSTATS_ARCHIVE"
+
+CONF="s|#DOMAIN#|$DOMAIN|g"
+CONF="$CONF;s|#XFERLOG#|$XFERLOG|g"
+CONF="$CONF;s|#DIRDATA#|$AWDIRDATA|g"
+
+sed -e "$CONF" < "$TEMPLATE" > "$FILE" 
+
+# rotate
+CONF="s|#AWSTATS_ARCHIVE#|$AWSTATS_ARCHIVE|g"
+
+sed -e "$CONF" < "$RTEMPLATE" > "$ROTATEPATH"
+
+chmod u+x "$ROTATEPATH"
+
+echo "$ROTATEPATH" >> "$SCRIPT_LIST"

@@ -1,0 +1,44 @@
+#! /bin/sh
+
+# Settings
+PGSQL="@PGSQL_CMD@"
+PGSQLSU="postgres"
+
+while [ "$TEMPLATE" = "" ]; do
+	echo "PostgreSQL template config (ex: /tmp/pgsql-setup.tmpl): "
+	read TEMPLATE
+done
+
+while [ "$USERNAME" = "" ]; do
+	echo "PostgreSQL user name (ex: myuser): "
+	read USERNAME
+done
+
+while [ "$PGSQLPASS" = "" ]; do
+	echo "PostgreSQL user password (empty to use global passwd): "
+	read PGSQLPASS
+
+	if [ "$PGSQLPASS" = "" -a "$USERPASS" != "" ]; then
+		PGSQLPASS="$USERPASS"
+	fi
+done
+
+export PGSQLPASS
+
+###
+
+echo "---"
+echo "PostgreSQL summary"
+echo "  PostgreSQL user name: $USERNAME"
+echo "  PostgreSQL user password: $PGSQLPASS"
+echo "  PostgreSQL setup template: $TEMPLATE"
+
+SETUP=`mktemp /tmp/pgsql.XXXXXXXXXX`
+
+CONF="s|#USERNAME#|$USERNAME|g"
+CONF="$CONF;s|#USERPASS#|$PGSQLPASS|g"
+
+sed -e "$CONF" < "$TEMPLATE" > "$SETUP"
+
+"$PGSQL" -U "$PGSQLSU" -c "\i $SETUP" template1 
+rm -f "$SETUP"

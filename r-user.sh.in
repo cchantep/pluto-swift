@@ -1,0 +1,28 @@
+#! /bin/sh
+
+# Settings
+USERDEL="@USERDEL_CMD@"
+
+# Inputs
+while [ "$USERNAME" = "" ]; do 
+	echo "Username (FTP and Unix): "
+	read USERNAME
+done
+
+while [ "$SITEHOME" = "" ]; do
+	echo "Site home (ex: /var/www/www.site.com): "
+	read SITEHOME
+done
+
+###
+
+echo "---"
+echo "User removal summary"
+echo "  User name: $USERNAME"
+echo "  Site home: $SITEHOME"
+
+if [ -d "$SITEHOME" ]; then
+	rm -rf "$SITEHOME"
+fi
+
+"$USERDEL" "$USERNAME"

@@ -1,0 +1,36 @@
+#! /bin/sh
+
+# Settings
+AWETCDIR="@AWSTATS_CFGDIR@"
+PASSWD_FILE="@AWSTATS_PASSWD_FILE@"
+FIND="@FIND_CMD@"
+
+# Inputs
+while [ "$DOMAIN" = "" ]; do
+	echo "Site main domain (ex: www.test.com):"
+	read DOMAIN
+done
+
+while [ "$USERNAME" = "" ]; do 
+	echo "Username (FTP and Unix): "
+	read USERNAME
+done
+
+# Variables
+TMPFILE=`mktemp`
+
+###
+
+echo "---"
+echo "Awstats removal summary"
+echo "  Awstats configuration directory: $AWETCDIR"
+echo "  Awstats password file: $PASSWD_FILE"
+echo "  Site main domain: $DOMAIN"
+echo "  Site user name: $USERNAME"
+
+# Remove profile
+"$FIND" "$AWETCDIR" -type f -name "*$DOMAIN*" -delete
+
+# Remove account
+grep -v "$USERNAME" "$PASSWD_FILE" > "$TMPFILE"
+mv "$TMPFILE" "$PASSWD_FILE"

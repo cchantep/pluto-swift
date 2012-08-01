@@ -1,0 +1,61 @@
+#! /bin/sh
+
+#####
+# Date: 2010-11-30 11:10
+# Author: Cedric Chantepie (cchantepie@corsaire.fr)
+# Version: 0.1
+# Description: Wizard script to add user quota.
+#####
+
+# Settings
+HLRATIO="@HLRAT@"
+
+SETQUOTA="@SETQUOTA_CMD@"
+EXPR="@EXPR_CMD@"
+SED="@SED_CMD@"
+
+while [ "$USERNAME" = "" ]; do
+        echo "Username (FTP and Unix): "
+        read USERNAME
+done
+
+while [ "$DISKLIMIT" = "" ]; do
+        echo "Disk limit (ends with 'K' for kilo, 'M' for mega, 'G' for giga ; -1 for unlimited): "
+        read DISKLIMIT
+done
+
+if [ "$DISKLIMIT" != "-1" ]; then
+	N=`echo "$DISKLIMIT" | "$SED" -e 's/[A-Z]*$//'`
+	U=`echo "$DISKLIMIT" | "$SED" -e 's/^[0-9]*//'`
+
+	if [ "$U" = "K" ]; then
+		N=`"$EXPR" "$N" '*' 1024`
+	fi
+	if [ "$U" = "M" ]; then
+		N=`"$EXPR" "$N" '*' 1048576`
+	fi
+	if [ "$U" = "G" ]; then
+		N=`"$EXPR" "$N" '*' 1073741824`
+	fi
+
+	R=`echo "$HLRATIO" | "$SED" -e 's/\.//'`
+	C=`echo "$HLRATIO" | "$SED" -e 's/^[0-9]*\.//' | wc -c`
+	X="1"
+	I=1
+	while [ $I -lt "$C" ]; do
+		X=`"$EXPR" "$X" '*' 10`
+
+		I=`"$EXPR" "$I" + 1`
+	done
+
+	HARDLIM=`"$EXPR" "$N" '*' "$R"`
+	HARDLIM=`"$EXPR" "$HARDLIM" / "$X"`
+
+	"$SETQUOTA" -u "$USERNAME" "$N" "$HARDLIM" 0 0 -a
+
+	echo "---"
+	echo "User quota summary"
+	echo "  User name: $USERNAME"
+	echo "  Soft limit: $N"
+	echo "  Hard limit: $HARDLIM"
+fi

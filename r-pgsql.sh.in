@@ -1,0 +1,27 @@
+#! /bin/sh
+
+# Settings
+PGSQL="@PGSQL_CMD@"
+PGSQLSU="postgres"
+
+# Inputs
+while [ "$USERNAME" = "" ]; do 
+	echo "Username (FTP and Unix): "
+	read USERNAME
+done
+
+while [ "$DBNAME" = "" ]; do 
+	echo "Database name: "
+	read DBNAME
+done
+
+# Variables
+TMPFILE=`mktemp`
+
+cat > "$TMPFILE" << EOF
+DROP DATABASE $DBNAME;
+DROP USER $USERNAME;
+EOF
+
+"$PGSQL" -U "$PGSQLSU" -c "\i $TMPFILE" template1 
+rm -f "$TMPFILE"

@@ -1,0 +1,23 @@
+#! /bin/sh
+
+#####
+# author: Cedric Chantepie (cchantepie@corsaire.fr)
+# date: 2008-12-12
+#####
+
+# Settings
+SERVERNAME="@SERVERNAME@"
+SECRET="@RSYNC_SECRET@"
+SCRIPTS="#BACKUPS#/#DOMAIN#/scripts.lst"
+BACKDIR="#BACKUPS#/#DOMAIN#"
+RSYNC="@RSYNC_CMD@"
+
+LIST=`cat $SCRIPTS`
+
+for SCRIPT in $LIST; do
+	$SCRIPT
+done
+
+"$RSYNC" --delete -r -u -i --exclude="*.sh" --password-file=$SECRET $BACKDIR backup@eserver0.corsaire.fr::$SERVERNAME
+
+df

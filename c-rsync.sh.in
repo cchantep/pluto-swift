@@ -1,0 +1,38 @@
+#! /bin/sh
+
+####
+# author: Cedric Chantepie (cchantepie@corsaire.fr)
+# date: 2007-05-27
+####
+
+CRON_DAILY="@CRON_DAILY_DIR@"
+
+while [ "$DOMAIN" = "" ]; do
+	echo "Site main domain (ex: www.site.com): "
+	read DOMAIN
+done
+
+while [ "$TEMPLATE" = "" ]; do
+	echo "Rsync script template (ex: /tmp/rsync.tmpl): "
+	read REMPLATE
+done
+
+while [ "$BACKUPS" = "" ]; do
+	echo "Backup repository path (ex: /backup): "
+	read BACKUPS
+done
+
+FILE="$CRON_DAILY/$DOMAIN-bak.cron"
+
+###
+
+echo "Rsync script summary: "
+echo "  Site main domain: $DOMAIN"
+echo "  Script template: $TEMPLATE"
+echo "  Generated script: $FILE"
+
+CONF="s|#DOMAIN#|$DOMAIN|g"
+CONF="$CONF;s|#BACKUPS#|$BACKUPS|g"
+
+sed -e "$CONF" < "$TEMPLATE" > "$FILE"
+chmod u+x "$FILE"

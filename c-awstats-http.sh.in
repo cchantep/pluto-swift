@@ -1,0 +1,134 @@
+#! /bin/sh
+
+#####
+# Date: 2005-12-22 17:03
+# Author: Cedric Chantepie (cchantepie@corsaire.fr)
+# Version: 0.1
+# Description: Wizard script to configure awstats site file.
+#####
+
+HTPASSWD="@HTPASSWD_CMD@"
+
+AWETCDIR="@AWSTATS_CFGDIR@"
+AWHTPASSWD="@AWSTATS_PASSWD_FILE@"
+
+while [ "$TEMPLATE" = "" -o ! -f "$TEMPLATE" ]; do
+	echo "Awstats configuration template (ex: /tmp/awstats-http.tmpl): "
+	read TEMPLATE
+done
+
+while [ "$DOMAIN" = "" ]; do
+	echo "Domain (ex: www.site.com) : "
+	read DOMAIN
+done
+
+FILE="$AWETCDIR/awstats.$DOMAIN.conf"
+
+if [ -f "$FILE" ]; then
+	echo "Awstats config file \"$FILE\" already exists"
+	exit
+fi
+
+while [ "$ACCESS_LOG" = "" ]; do
+	echo "Access log (path to file access_log) : "
+	read ACCESS_LOG
+done
+
+while [ "$HOST_ALIASES" != "_NONE_" -a "$HOST_ALIASES" = "" ]; do
+	echo "Site aliases (separated by space without Domain and no final space) : "
+	read HOST_ALIASES
+done
+
+AWALIASES="$HOST_ALIASES"
+
+if [ "$AWALIASES" = "_NONE_" ]; then
+	AWALIASES=""
+fi
+
+while [ "$AWDIRDATA" = "" ]; do
+	echo "Awstats dir data (ex: /var/www/www.site.com/logs/awstats) :"
+	read AWDIRDATA
+done
+
+while [ "$USERNAME" = "" ]; do
+	echo "Awstats username: "
+	read USERNAME
+done
+
+while [ "$AWPASSWD" = "" ]; do
+	echo "Awstats passwd (empty to use global passwd): "
+	read AWPASSWD
+
+	if [ "$AWPASSWD" = "" -a "$USERPASS" != "" ]; then
+		AWPASSWD="$USERPASS"
+	fi
+done
+
+# Archive data
+while [ "$RTEMPLATE" = "" -o ! -f "$RTEMPLATE" ]; do
+	echo "Path to rotate script template: "
+	read RTEMPLATE
+done
+
+while [ "$ROTATEPATH" = "" ]; do
+	echo "Path where to put script to rotate awstats log archive (ex : /backup/www.site.com/awstats/rotate.sh): "
+	read ROTATEPATH
+done
+
+echo "Path to awstats log archive (default: $AWDIRDATA/awstats_archive.$DOMAIN.log): "
+read AWSTATS_ARCHIVE
+
+if [ "$AWSTATS_ARCHIVE" = "" ]; then
+	AWSTATS_ARCHIVE="$AWDIRDATA/awstats_archive.$DOMAIN.log"
+fi
+
+while [ "$SCRIPT_LIST" = "" ]; do
+	echo "Path to script list (ex: /backup/www.site.com/scripts.lst): "
+	read SCRIPT_LIST
+done
+
+###
+
+if [ "$AWALIASES" = "" ]; then
+  AWALIASES=$DOMAIN
+else
+  AWALIASES="$DOMAIN $AWALIASES"
+fi
+
+echo "---"
+echo "Awstats summary "
+echo "  Awstats template: $TEMPLATE"
+echo "  Domain: $DOMAIN"
+echo "  Access log: $ACCESS_LOG"
+echo "  Host aliases: $HOST_ALIASES"
+echo "  Awstats dir data: $AWDIRDATA"
+echo "  Awstats username: $USERNAME"
+echo "  Awstats password: $AWPASSWD"
+echo "  Generated awstats config file: $FILE"
+echo "  Awstats rotate script template: $RTEMPLATE"
+echo "  Path to rotate script: $ROTATEPATH"
+echo "  Awstats log archive: $AWSTATS_ARCHIVE"
+
+CONF="s|#DOMAIN#|$DOMAIN|g"
+CONF="$CONF;s|#ACCESS_LOG#|$ACCESS_LOG|g"
+CONF="$CONF;s|#HOST_ALIASES#|$AWALIASES|g"
+CONF="$CONF;s|#DIRDATA#|$AWDIRDATA|g"
+
+sed -e "$CONF" < "$TEMPLATE" > "$FILE" 
+
+HTPASSWD_OPTS="-b"
+
+if [ ! -f "$AWHTPASSWD" ]; then
+	HTPASSWD_OPTS="$HTPASSWD_OPTS -c"
+fi
+
+"$HTPASSWD" $HTPASSWD_OPTS "$AWHTPASSWD" "$USERNAME" "$AWPASSWD"
+
+# rotate
+CONF="s|#AWSTATS_ARCHIVE#|$AWSTATS_ARCHIVE|g"
+
+sed -e "$CONF" < "$RTEMPLATE" > "$ROTATEPATH"
+
+chmod u+x "$ROTATEPATH"
+
+echo "$ROTATEPATH" >> "$SCRIPT_LIST"

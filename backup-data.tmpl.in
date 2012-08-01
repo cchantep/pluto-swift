@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Backup settings...
+TARCMD="@TAR_CMD@"
+PROJECT_HOME="#PROJECT_HOME#"
+DATADIR="#DATADIR#" # relative to project home
+BACKUPDIR="#BACKUPDIR#"
+PROJECTNAME="#PROJECTNAME#"
+FILEND="#FILEND#"
+
+# File names
+LATEST_TAR="$BACKUPDIR/$PROJECTNAME$FILEND"LATEST".tar.bz2"
+
+cd "$PROJECT_HOME"
+
+"$TARCMD" -cjvpf "$LATEST_TAR" "$DATADIR"
+
+echo "Data backup for $PROJECTNAME done"

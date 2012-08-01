@@ -1,0 +1,40 @@
+#! /bin/bash
+
+DCALCCMD="@HOSTINGWIZ_DIR@/date/datecalc.sh"
+DUMPCMD="@PGDUMP_CMD@"
+DATE=`@DATE_CMD@ +'%Y%m%d'`
+M=`@DATE_CMD@ +'%Y%m'`
+
+# Settings
+MAXDAYS="31"
+BACKUPDIR="#BACKUPDIR#"
+DUMP_FILENAME="$BACKUPDIR/#DBNAME#-dump_$DATE.sql"
+DBUSER="#USER#"
+DBPASSWD="#PASSWD#"
+DBNAME="#DBNAME#"
+
+FLAG="$BACKUPDIR/$DBNAME-$M.flag"
+
+# Some daily cleaning
+OBD=`$DCALCCMD - $MAXDAYS | sed -e 's/-//g'`
+
+echo "Remove backup older than $MAXDAYS days"
+find "$BACKUPDIR" -type f \
+	-name "$DBNAME-dump_$OBD.sql.bz2" \
+	-print -exec rm -f {} \;
+
+if [ ! -f "$FLAG" ]; then
+	echo "Remove obselete flag file"
+	find "$BACKUPDIR" -type f \
+		-name "$DBNAME-*.flag" \
+		-print -exec rm -f {} \;
+
+fi
+
+if [ -f "$DUMP_FILENAME.bz2" ]; then
+        rm -f "$DUMP_FILENAME.bz2"
+fi
+
+$DUMPCMD -U "$DBUSER" -f "$DUMP_FILENAME" -R -D -O -x "$DBNAME"
+bzip2 -9v $DUMP_FILENAME
+touch "$FLAG"

@@ -1,0 +1,167 @@
+#! /bin/sh
+
+# Settings
+SED="@SED_CMD@"
+UNZIP="@UNZIP_CMD@"
+ZIP="@ZIP_CMD@"
+FIND="@FIND_CMD@"
+ODTDIR="@ODF_TMPL_DIR@"
+OUTPUTDIR="@REPORT_OUTPUTDIR@"
+SLD="tm nom com gouv gov edu"
+
+# Variables
+MSGBASEDIR=`dirname $0`
+MSGBASEDIR="$MSGBASEDIR/messages"
+
+if [ ! -d "$MSGBASEDIR" ]; then
+    echo "No messages directory: $MSGBASEDIR"
+    exit
+fi	
+
+# Inputs
+LOCALE="@"
+
+while [ ! -d "$MSGBASEDIR/$LOCALE" ]; do
+    echo "Locale for reporting (default: $DEFAULT_LOCALE): "
+    read LOCALE
+    
+    if [ -z "$LOCALE" ]; then
+	LOCALE="$DEFAULT_LOCALE"
+    fi
+done
+
+if [ ! -r "$MSGBASEDIR/$LOCALE/report.sh" ]; then
+    echo "Cannot read reporting messages bundle: $MSGBASEDIR/$LOCALE/report.sh"
+    exit
+fi
+
+source "$MSGBASEDIR/$LOCALE/report.sh"
+
+# Preconditions
+if [ -z "$DOMAIN" ]; then
+    echo "Domain not specified: $DOMAIN"
+    exit
+fi
+    
+# Database host
+DBHOST="localhost"
+
+# Extract DNSBASE
+I=0
+DNSBASE=""
+
+while [ $I -lt 2 ]; do
+    if [ "$DNSBASE" = "" ]; then
+	D="$DOMAIN"
+    else
+	D=`echo "$DOMAIN" | "$SED" -e "s/.$DNSBASE\$//"`
+    fi
+
+    TMP=""
+
+    while [ true ]; do
+	S=`echo "$D" | "$SED" -e 's/\.\(.*\)$/#:sep:#\1/;s/#:sep:#.*$//'`
+	TMP=`echo "$D" | "$SED" -e "s/^$S\\.//"`
+
+	if [ "$TMP" = "$D" ]; then
+	    break
+	fi
+	
+	D="$TMP"
+    done
+
+    if [ "$DNSBASE" = "" ]; then
+	DNSBASE="$TMP"
+    else
+	DNSBASE="$TMP.$DNSBASE"
+    fi
+
+    I=`expr $I + 1`
+
+    if [ $I -eq 2 ]; then
+	for S in $SLD; do
+	    if [ "$TMP" = "$S" ]; then
+		I=`expr $I - 1`
+	    fi
+	done
+    fi
+done
+
+echo $DNSBASE
+    
+# Database administration URL
+DBADMURL=""
+
+if [ "$DBTYPE" = "mysql" ]; then
+    DBADMURL="http://$DOMAIN/_phpMyAdmin_/"
+fi
+
+if [ "$DBTYPE" = "postgresql" ]; then
+    DBADMURL="http://$DOMAIN/_phpPgAdmin_/"
+fi
+
+# Substitute env variable
+VARS="USERNAME USERPASS DOMAIN DNSBASE HOST_ALIASES DBTYPE DBNAME DBHOST DBADMURL"
+TMPFILE=`mktemp`
+
+for VAR in $VARS; do
+    cat >> "$TMPFILE" <<EOF
+VAL="\$$VAR"
+if [ -z "\$VAL" -o "\$VAL" = "_NONE_" ]; then
+  VAL="$MSG_NONE"
+fi
+echo "s|#$VAR#|\$VAL|g"
+EOF
+done
+
+TMPSED=`mktemp`
+source "$TMPFILE" > "$TMPSED"
+rm -f "$TMPFILE"
+
+echo "---"
+echo "Which OpenDoc template(s) must be used"
+DICT=""
+
+I=0
+for T in `"$FIND" "$ODTDIR" -type f -name '*.odt' -print`; do
+	I=`expr $I + 1`
+	N=`basename "$T"`
+
+	echo "  [$I] $N"
+	DICT="$DICT#:sep:#$I#:pos:#$N#:sep:#"
+done
+
+if [ $I -eq 0 ]; then
+	echo "  No available template"
+	rm -f "$TMPSED"
+	exit
+else
+	TPOS=""
+
+	while [ -z "$TPOS" ]; do
+		echo "Type number(s) to choose (default: 1): "
+		read TPOS
+
+		if [ -z "$TPOS" ]; then
+			TPOS="1"
+		fi
+	done
+
+	for P in $TPOS; do
+		T=`echo "$DICT" | "$SED" -e "s|.*#:sep:#$P#:pos:#||;s|#:sep:#.*||g"`
+		DOCNAME=`echo "$T" | "$SED" -f "$TMPSED" | "$SED" -e 's/.odt$/.odf/'`
+		TMPDIR=`mktemp -d`
+
+		cd "$TMPDIR"
+		"$UNZIP" "$ODTDIR/$T" > /dev/null
+		"$SED" -f "$TMPSED" < "$TMPDIR/content.xml" > "$TMPDIR/.tmp"
+		mv "$TMPDIR/.tmp" "$TMPDIR/content.xml"
+		"$ZIP" -r "$OUTPUTDIR/$DOCNAME" * > /dev/null
+		cd -
+		rm -rf "$TMPDIR"
+
+		echo "  * Generated report $OUTPUTDIR/$DOCNAME"
+	done
+fi
+
+rm -f "$TMPSED"

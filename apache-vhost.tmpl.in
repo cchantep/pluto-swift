@@ -1,0 +1,56 @@
+<VirtualHost #SERVERIP#:80>
+    ServerName #DOMAIN#
+    ServerAdmin contact@nozicaa.com
+    #SERVER_ALIASES#
+
+    DocumentRoot #SITEHOME#/htdocs/
+    php_admin_value open_basedir #SITEHOME#
+    SetEnv DATA_DIRECTORY #SITEHOME#/data/
+
+    # Separate upload dir.
+    # Also required as workaround for php bugs:
+    # 38934, 41824
+    php_admin_value upload_tmp_dir #SITEHOME#/data/
+
+    #! disklimit: #DISKLIMIT#
+    #! bwlimit: #BANDWIDTHLIMIT#
+
+    <Directory "#SITEHOME#">
+      AllowOverride All
+    </Directory>
+
+    CustomLog #SITEHOME#/logs/access_log combined
+    ErrorLog #SITEHOME#/logs/error_log
+
+    #PHP_MY_ADMIN#
+    #PHP_PG_ADMIN#
+    #DB_ANNOTATION#
+
+    Alias /awstatsclasses "@AWSTATS_WEBDIR@/classes/"
+    Alias /awstatscss "@AWSTATS_WEBDIR@/css/"
+    Alias /awstatsicons "@AWSTATS_WEBDIR@/icon/"
+    ScriptAlias /stats "@AWSTATS_CGIDIR@"
+    RedirectMatch /stats/$ http://#DOMAIN#/stats/awstats.pl
+    ScriptAlias /ftpstats "@AWSTATS_CGIDIR@"
+    RedirectMatch /ftpstats/$ http://#DOMAIN#/ftpstats/awstats.pl
+
+    <LocationMatch ^/stats/*>
+      SetEnv AWSTATS_FORCE_CONFIG #DOMAIN#
+      AuthName "Statistiques Web #DOMAIN#"
+      AuthUserFile /etc/awstats/htpasswd
+      AuthType Basic
+      require user nozicaa #USERNAME#
+    </LocationMatch>
+
+    <LocationMatch ^/ftpstats/*>
+      SetEnv AWSTATS_FORCE_CONFIG ftp-#DOMAIN#
+      AuthName "Statistiques FTP #DOMAIN#"
+      AuthUserFile /etc/awstats/htpasswd
+      AuthType Basic
+      require user nozicaa #USERNAME#
+    </LocationMatch>
+
+    <LocationMatch ^/*>
+      Allow from All
+    </LocationMatch>
+</VirtualHost>

@@ -1,0 +1,49 @@
+#! /bin/sh
+
+MYSQLADMIN="@MYSQLADM_CMD@"
+MYSQL="@MYSQL_CMD@"
+
+MYSQLSU="@MYSQLSU@"
+MYSQLSUPASS="@MYSQLSU_PASS@"
+
+while [ "$TEMPLATE" = "" ]; do
+	echo "MySQL template config (ex: /tmp/mysql-setup.tmpl): "
+	read TEMPLATE
+done
+
+while [ "$USERNAME" = "" ]; do
+	echo "MySQL user name (ex: myuser): "
+	read USERNAME
+done
+
+while [ "$MYSQLPASS" = "" ]; do
+	echo "MySQL user password (empty to use global passwd): "
+	read MYSQLPASS
+
+	if [ "$MYSQLPASS" = "" -a "$USERPASS" != "" ]; then
+		MYSQLPASS="$USERPASS"
+	fi
+done
+
+export MYSQLPASS
+
+###
+
+echo "---"
+echo "MySQL summary"
+echo "  MySQL user name: $USERNAME"
+echo "  MySQL user password: $MYSQLPASS"
+echo "  MySQL setup template: $TEMPLATE"
+
+"$MYSQLADMIN" create "$USERNAME" -u "$MYSQLSU" "-p$MYSQLSUPASS"
+
+SETUP=`mktemp /tmp/mysql.XXXXXXXXXX`
+
+CONF="s|#USERNAME#|$USERNAME|g"
+CONF="$CONF;s|#USERPASS#|$MYSQLPASS|g"
+
+sed -e "$CONF" < "$TEMPLATE" > "$SETUP"
+
+"$MYSQL" -u "$MYSQLSU" "-p$MYSQLSUPASS" < "$SETUP" && rm -f "$SETUP"
+
+"$MYSQLADMIN" reload -u "$MYSQLSU" "-p$MYSQLSUPASS"

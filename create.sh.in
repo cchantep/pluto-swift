@@ -1,0 +1,191 @@
+#! /bin/sh
+
+#####
+# brief: Creation wizard launcher
+# author: Cedric Chantepie (cchantepie@corsaire.fr)
+# date: 2010-02-09
+#####
+
+SITESDIR="@WEB_ROOT@"
+BACKUPS="@BACKUP_ROOT@"
+DEFAULT_LOCALE="@DEFAULT_LOCALE@"
+USERNAME=""
+
+WIZARDDIR=`dirname $0`
+
+while [ "$DOMAIN" = "" ]; do
+	echo "Site main domain (ex: www.site.com): "
+	read DOMAIN
+done
+
+echo "Site aliases (separated by space without Domain and no final space) : "
+read HOST_ALIASES
+
+if [ "$HOST_ALIASES" = "" ]; then
+	HOST_ALIASES="_NONE_"
+fi
+
+SITEHOME="$SITESDIR/$DOMAIN"
+
+while [ "$USERNAME" = "" ]; do
+	echo "Site user name (max 8 digits, ex: site0001): "
+	read USERNAME
+done
+
+while [ "$USERPASS" = "" ]; do
+	echo "Site user password (FTP and Unix) ('_' if user already exists): "
+	read USERPASS
+done
+
+# Include add user
+INDEX_HTM="$WIZARDDIR/index.htm"
+
+source "$WIZARDDIR/c-user.sh"
+
+# Include user quota
+DISKLIMIT=""
+
+if [ -x "$WIZARDDIR/c-usrquo.sh" ]; then
+        USEQUOTA=""
+
+        while [ "$USEQUOTA" != "y" -a "$USEQUOTA" != "n" ]; do
+                echo "Apply user quota {y/n} (empty for \"n\"): "
+                read USEQUOTA
+
+                if [ "$USEQUOTA" = "" ]; then
+                        USEQUOTA="n"
+                fi
+        done
+
+        if [ "$USEQUOTA" = "y" ]; then
+                while [ "$DISKLIMIT" = "" ]; do
+                        echo "Disk limit (ends with 'K' for kilo, 'M' for mega, 'G' for giga ; -1 for unlimited): "
+                        read DISKLIMIT
+                done
+
+                source "$WIZARDDIR/c-usrquo.sh"
+        fi
+fi
+
+# Awstats web
+ACCESS_LOG="$SITEHOME/logs/access_log"
+AWDIRDATA="$SITEHOME/logs/awstats/"
+TEMPLATE="$WIZARDDIR/awstats-http.tmpl"
+RTEMPLATE="$WIZARDDIR/awstats-rotat.tmpl"
+ROTATEDIR="$BACKUPS/$DOMAIN/awstats"
+
+mkdir -p "$ROTATEDIR"
+
+ROTATEPATH="$ROTATEDIR/rotate.sh"
+SCRIPT_LIST="$BACKUPS/$DOMAIN/scripts.lst"
+
+source "$WIZARDDIR/c-awstats-http.sh"
+
+# Awstats ftp
+TEMPLATE="/usr/share/hosting/awstats-ftp.tmpl"
+ROTATEPATH="$ROTATEDIR/rotate-ftp.sh"
+XFERLOG="/var/log/$USERNAME.xferlog"
+
+source "$WIZARDDIR/c-awstats-ftp.sh"
+
+# MySQL
+if [ -x "$WIZARDDIR/c-mysql.sh" ]; then
+	while [ "$USEMYSQL" != "y" -a "$USEMYSQL" != "n" ]; do
+        	echo "Use MySQL {y/n} (empty for \"n\"): "
+	        read USEMYSQL
+
+	        if [ "$USEMYSQL" = "" ]; then
+        	        USEMYSQL="n"
+	        fi
+	done
+
+	if [ "$USEMYSQL" = "y" ]; then
+		TEMPLATE="$WIZARDDIR/mysql-setup.tmpl"
+
+		source "$WIZARDDIR/c-mysql.sh"
+
+		# Backup
+		TEMPLATE="$WIZARDDIR/backup-mysql.tmpl"
+		BACKUPDIR="$BACKUPS/$DOMAIN/mysql"
+		SCRIPT_LIST="$BACKUPS/$DOMAIN/scripts.lst"
+		DBNAME="$USERNAME"
+		DBTYPE="mysql"
+		DESTFILE="$BACKUPDIR/backup.sh"
+
+		if [ ! -d "$BACKUPDIR" ]; then
+			mkdir -p "$BACKUPDIR"
+		fi
+
+		source "$WIZARDDIR/c-mysql-backup.sh"
+	fi
+else
+    USEMYSQL="n"
+fi
+
+# PostgreSQL
+if [ -x "$WIZARDDIR/c-pgsql.sh" ]; then
+	while [ "$USEPGSQL" != "y" -a "$USEPGSQL" != "n" ]; do
+        	echo "Use PostgreSQL {y/n} (empty for \"n\"): "
+	        read USEPGSQL
+
+        	if [ "$USEPGSQL" = "" ]; then
+	                USEPGSQL="n"
+        	fi
+	done
+
+	if [ "$USEPGSQL" = "y" ]; then
+		TEMPLATE="$WIZARDDIR/pgsql-setup.tmpl"
+
+		source "$WIZARDDIR/c-pgsql.sh"
+
+		# Backup
+		TEMPLATE="$WIZARDDIR/backup-pgsql.tmpl"
+		BACKUPDIR="$BACKUPS/$DOMAIN/pgsql"
+		SCRIPT_LIST="$BACKUPS/$DOMAIN/scripts.lst"
+		DBNAME="$USERNAME"
+		DBTYPE="postgresql"
+		DESTFILE="$BACKUPDIR/backup.sh"
+
+		if [ ! -d "$BACKUPDIR" ]; then
+			mkdir -p "$BACKUPDIR"
+		fi
+
+		source "$WIZARDDIR/c-pgsql-backup.sh"
+	fi
+else
+    USEPGSQL="n"
+fi
+
+# Vhost
+TEMPLATE="$WIZARDDIR/apache-vhost.tmpl"
+
+source "$WIZARDDIR/c-vhost.sh"
+
+# Data backup
+TEMPLATE="$WIZARDDIR/backup-data.tmpl"
+BACKUPDIR="$BACKUPS/$DOMAIN/data"
+DATADIR="htdocs"
+DESTFILE="$BACKUPDIR/backup.sh"
+FILEND="-data_"
+SCRIPT_LIST="$BACKUPS/$DOMAIN/scripts.lst"
+
+if [ ! -d "$BACKUPDIR" ]; then
+	mkdir -p "$BACKUPDIR"
+fi
+
+source "$WIZARDDIR/c-data-backup.sh"
+
+# FTP log extractor
+MASTERLOG="/var/log/xferlog"
+USERLOG="/var/log/$USERNAME.xferlog"
+DESTFILE="@XFER_EXTRACTOR_DIR@/$USERNAME.sh"
+
+source "$WIZARDDIR/c-uxferlog.sh"
+
+# Rsync
+TEMPLATE="$WIZARDDIR/rsync.tmpl"
+
+source "$WIZARDDIR/c-rsync.sh"
+
+# Report
+source "$WIZARDDIR/c-report.sh"

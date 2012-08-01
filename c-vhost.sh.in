@@ -1,0 +1,128 @@
+#! /bin/sh
+
+APACHE_VHOSTS="@VHOST_DIR@"
+PHPMYADMIN="@PHPMYADM_DIR@"
+PHPPGADMIN="@PHPPGADM_DIR@"
+IFCONFIG="@IFCFG_CMD@"
+IFACE="@HOSTING_IFACE@"
+
+while [ "$TEMPLATE" = "" ]; do
+	echo "Vhost template (ex: /tmp/vhost.tmpl): "
+	read TEMPLATE
+done
+
+while [ "$USERNAME" = "" ]; do
+        echo "Site user: "
+        read USERNAME
+done
+
+while [ "$SITEHOME" = "" ]; do
+        echo "Site home (ex: /var/www/www.site.com): "
+        read SITEHOME
+done
+
+while [ "$DOMAIN" = "" ]; do
+        echo "Site main domain (ex: www.site.com): "
+        read DOMAIN
+done
+
+while [ "$DISKLIMIT" = "" ]; do
+	echo "Disk limit (ends with 'K' for kilo, 'M' for mega, 'G' for giga ; -1 for unlimited): "
+	read DISKLIMIT
+done
+
+while [ "$BANDWIDTHLIMIT" = "" ]; do
+	echo "Bandwidth limit (ends with 'K' for kilo, 'M' for mega, 'G' for giga ; -1 for unlimited): "
+	read BANDWIDTHLIMIT
+done
+
+FILE="$APACHE_VHOSTS/0002_$DOMAIN.vhost"
+
+if [ `find "$APACHE_VHOSTS" -type f -name "*$DOMAIN.vhost" -print | wc -l` -gt 0 ]; then
+	echo "Vhost file \"*$FILE\" already exists"
+	exit
+fi
+
+while [ "$HOST_ALIASES" != "_NONE_" -a "$HOST_ALIASES" = "" ]; do
+        echo "Site aliases (separated by space without Domain and no final space) : "
+        read HOST_ALIASES
+done
+
+SERVER_ALIASES="# No aliases"
+
+if [ "$HOST_ALIASES" != "" -a "$HOST_ALIASES" != "_NONE_" ]; then
+	SERVER_ALIASES="ServerAlias $HOST_ALIASES"
+fi
+
+while [ "$USEMYSQL" != "y" -a "$USEMYSQL" != "n" ]; do
+        echo "Use MySQL (y/n): "
+        read USEMYSQL
+done
+
+while [ "$USEPGSQL" != "y" -a "$USEPGSQL" != "n" ]; do
+        echo "Use PostgreSQL (y/n): "
+	read USEPGSQL
+done
+
+if [ "$USEPGSQL" = "y" -o "$USEMYSQL" = "y" ]; then
+	while [ -z "$DBNAME" ]; do
+		echo "Database name: "
+		read DBNAME
+	done
+fi
+
+SERVERIP=`"$IFCONFIG" "$IFACE" | grep "inet addr:" | cut -d ':' -f 2 | cut -d ' ' -f 1`
+PHP_MY_ADMIN="# No phpMyAdmin"
+DB_ANNOTATION="# No database"
+
+if [ "$USEMYSQL" = "y" ]; then
+	PHP_MY_ADMIN="Alias /_phpMyAdmin_ \"$PHPMYADMIN\"\\n    <Directory $PHPMYADMIN>\\n    php_admin_value open_basedir $PHPMYADMIN:$SITEHOME/data\\n    </Directory>"
+	DB_ANNOTATION="#! database: mysql,$DBNAME"
+fi
+
+PHP_PG_ADMIN="# No phpPgAdmin"
+
+if [ "$USEPGSQL" = "y" ]; then
+        PHP_PG_ADMIN="Alias /_phpPgAdmin_ \"$PHPPGADMIN\"\\n    <Directory $PHPPGADMIN>\\n    php_admin_value open_basedir $PHPPGADMIN:$SITEHOME/data\\n    </Directory>"
+	DB_ANNOTATION="#! database: postgresql,$DBNAME"
+fi
+
+###
+
+DLIM="none"
+BLIM="none"
+
+if [ ! "$DISKLIMIT" = "-1" ]; then
+	DLIM="$DISKLIMIT"
+fi
+
+if [ ! "$BANDWIDTHLIMIT" = "-1" ]; then
+	BLIM="$BANDWIDTHLIMIT"
+fi
+
+echo "---"
+echo "Vhost summary"
+echo "  Server IP: $SERVERIP"
+echo "  Server name: $DOMAIN"
+echo "  Server aliases: $HOST_ALIASES"
+echo "  Add phpMyAdmin for MySQL: $USEMYSQL"
+echo "  Add phpPgAdmin for PostgreSQL: $USEPGSQL"
+echo "  Site home: $SITEHOME"
+echo "  Site user name: $USERNAME"
+echo "  Disk limit: $DLIM"
+echo "  Bandwidth limit: $BLIM"
+echo "  Vhost template: $TEMPLATE"
+echo "  Generated vhost: $FILE"
+
+CONF="s|#SERVERIP#|$SERVERIP|g"
+CONF="$CONF;s|#DOMAIN#|$DOMAIN|g"
+CONF="$CONF;s|#SERVER_ALIASES#|$SERVER_ALIASES|g"
+CONF="$CONF;s|#SITEHOME#|$SITEHOME|g"
+CONF="$CONF;s|#PHP_MY_ADMIN#|$PHP_MY_ADMIN|g"
+CONF="$CONF;s|#PHP_PG_ADMIN#|$PHP_PG_ADMIN|g"
+CONF="$CONF;s|#DB_ANNOTATION#|$DB_ANNOTATION|g"
+CONF="$CONF;s|#USERNAME#|$USERNAME|g"
+CONF="$CONF;s|#DISKLIMIT#|$DISKLIMIT|g"
+CONF="$CONF;s|#BANDWIDTHLIMIT#|$BANDWIDTHLIMIT|g"
+
+sed -e "$CONF" < "$TEMPLATE" > "$FILE"

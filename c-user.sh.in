@@ -1,0 +1,73 @@
+#! /bin/sh
+
+#####
+# Date: 2007-05-24 21:00
+# Author: Cedric Chantepie (cchantepie@corsaire.fr)
+# Version: 0.1
+# Description: Wizard script to add web account.
+#####
+
+WEBGROUP="apache"
+
+USERADD="@USERADD_CMD@"
+PASSWD="@PASSWD_CMD@"
+PASSWD_LST="@PASSWD_FILE@"
+
+while [ "$USERNAME" = "" ]; do 
+	echo "Username (FTP and Unix): "
+	read USERNAME
+done
+
+while [ "$SITEHOME" = "" ]; do
+	echo "Site home (ex: /var/www/www.site.com): "
+	read SITEHOME
+done
+
+USERCOUNT=`cut -d ':' -f 1 < "$PASSWD_LST" | grep "$USERNAME" | wc -l`
+
+if [ $USERCOUNT -eq 0 ]; then
+	while [ "$USERPASS" = "" ]; do
+		echo "User password: "
+		read USERPASS
+	done
+fi
+
+###
+
+if [ -d "$SITEHOME" ]; then
+	echo "Site home \"$SITEHOME\" already exists, remove it by yourself to create it again"
+	exit
+fi
+
+###
+
+echo "---"
+echo "Site user summary"
+echo "  Apache group: $WEBGROUP"
+echo "  Site user name: $USERNAME"
+echo "  Site user password: $PASSWD"
+echo "  Site home: $SITEHOME"
+
+if [ ! $USERCOUNT -eq 0 ]; then
+        echo "User \"$USERNAME\" already exists, skip user creation"
+else
+	"$USERADD" -M -s /sbin/nologin -d "$SITEHOME" -g "$WEBGROUP" "$USERNAME"
+	echo "$USERPASS" | "$PASSWD" --stdin "$USERNAME"
+fi
+
+# Create directories
+mkdir -p $SITEHOME/{htdocs,data,logs/awstats}
+
+# Init log to avoid warning about missing accesslog
+touch $SITEHOME/logs/access_log
+
+# Add default files
+cp "$INDEX_HTM" "$SITEHOME/htdocs/index.htm"
+touch "$SITEHOME/.htaccess"
+
+chown -R "$USERNAME:$WEBGROUP" "$SITEHOME/htdocs"
+chown -R "$USERNAME:$WEBGROUP" "$SITEHOME/data"
+chown "$USERNAME:$WEBGROUP" "$SITEHOME/.htaccess"
+
+# Allow webgroup to write in data directory
+chmod -R g+w "$SITEHOME/data"

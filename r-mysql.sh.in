@@ -1,0 +1,34 @@
+#! /bin/sh
+
+# Settings
+MYSQLSU="@MYSQLSU@"
+MYSQLSUPASS="@MYSQLSU_PASS@"
+MYSQL="@MYSQL_CMD@"
+MYSQLADMIN="@MYSQLADM_CMD@"
+
+# Inputs
+while [ "$USERNAME" = "" ]; do 
+	echo "Database user name: "
+	read USERNAME
+done
+
+while [ "$DBNAME" = "" ]; do 
+	echo "Database name: "
+	read DBNAME
+done
+
+# Variables
+TMPFILE=`mktemp`
+
+cat > "$TMPFILE" << EOF
+BEGIN;
+DROP DATABASE $DBNAME;
+DELETE FROM user WHERE User='$USERNAME';
+DELETE FROM db WHERE User='$USERNAME';
+COMMIT;
+EOF
+
+"$MYSQL" "-u$MYSQLSU" "-p$MYSQLSUPASS" mysql < "$TMPFILE"
+rm -f "$TMPFILE"
+
+"$MYSQLADMIN" reload "-u$MYSQLSU" "-p$MYSQLSUPASS"

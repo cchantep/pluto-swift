@@ -1,0 +1,29 @@
+#! /bin/sh
+
+# Settings
+CRON_DAILY="@CRON_DAILY_DIR@"
+FIND="@FIND_CMD@"
+
+# Inputs
+while [ "$BACKUPDIR" = "" ]; do
+	echo "Backup directory (ex: /backup/www.test.com/):"
+	read BACKUPDIR
+done
+
+while [ "$DOMAIN" = "" ]; do
+	echo "Site main domain (ex: www.test.com):"
+	read DOMAIN
+done
+
+###
+
+echo "---"
+echo "Backup removal summary"
+echo "  Backup directory: $BACKUPDIR"
+echo "  Site main domain: $DOMAIN"
+
+"$FIND" "$CRON_DAILY" -type f -name "*$DOMAIN*" -print -delete
+
+if [ -d "$BACKUPDIR" ]; then
+	rm -rf "$BACKUPDIR"
+fi

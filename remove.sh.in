@@ -1,0 +1,90 @@
+#! /bin/sh
+
+#####
+# brief: Removal wizard launcher
+# author: Cedric Chantepie (cchantepie@corsaire.fr)
+# date: 2010-02-09
+#####
+
+SITESDIR="@WEB_ROOT@"
+BACKUPS="@BACKUP_ROOT@"
+VHOSTDIR="@VHOST_DIR@"
+VHOSTEXT=".@VHOST_FEXT@"
+FIND="@FIND_CMD@"
+SED="@SED_CMD@"
+USERNAME=""
+
+WIZARDDIR=`dirname $0`
+
+while [ "$DOMAIN" = "" ]; do
+	echo "Site main domain (ex: www.site.com): "
+	read DOMAIN
+done
+
+# Remove backup
+BACKUPDIR="$BACKUPS/$DOMAIN"
+
+source "$WIZARDDIR/r-backup.sh"
+
+# Remove vhost
+C=`"$FIND" "$VHOSTDIR" -type f -name "*$DOMAIN$VHOSTEXT" -print | wc -l`
+
+if [ ! "$C" = "1" ]; then
+    echo "Should have found exactly one active vhost for domain: $DOMAIN"
+    exit
+fi
+
+VHOSTFILE=`"$FIND" "$VHOSTDIR" -type f -name "*$DOMAIN$VHOSTEXT" -print` 
+
+if [ ! -w "$VHOSTFILE" -o ! -r "$VHOSTFILE" ]; then
+    echo "Cannot manage vhost file: $VHOSTFILE"
+fi
+
+# grep information from vhost before removal
+SYSUSER="nozicaa"
+USERNAME=`grep 'require user' "$VHOSTFILE" | head -n 1 | "$SED" -e "s/^[ \t]*require[ \t]*user[ \t]*$SYSUSER[ \t]*//;s/[ \t]\$//"`
+DB_SPECS=`grep '#! database:' "$VHOSTFILE" | "$SED" -e 's/^[ \t]*#\![ \t]*database:[ \t]*//;s/[ \t]*$//'`
+
+source "$WIZARDDIR/r-vhost.sh"
+
+# Remove user and its home
+SITEHOME="$SITESDIR/$DOMAIN"
+
+source "$WIZARDDIR/r-user.sh"
+
+# Remove awstats
+source "$WIZARDDIR/r-awstats.sh"
+
+# Remove database
+DBTYPE=`echo "$DB_SPECS" | "$SED" -e 's/,.*$//'`
+DBNAME=`echo "$DB_SPECS" | "$SED" -e 's/^.*,//'`
+DB_REMOVED="no"
+
+# mysql
+if [ "$DBTYPE" = "mysql" ]; then
+    if [ ! -x "$WIZARDDIR/r-mysql.sh" ]; then
+	echo "MySQL removal script not found: $WIZARDDIR/r-mysql.sh"
+    else
+	source "$WIZARDDIR/r-mysql.sh"
+	DB_REMOVED="yes"
+    fi
+fi
+
+# pgsql
+if [ "$DBTYPE" = "postgresql" ]; then
+    if [ ! -x "$WIZARDDIR/r-pgsql.sh" ]; then
+	echo "PostgreSQL removal script not found: $WIZARDDIR/r-pgsql.sh"
+    else
+	source "$WIZARDDIR/r-pgsql.sh"
+	DB_REMOVED="yes"
+    fi
+fi
+
+if [ ! -z "$DBNAME" -a "$DB_REMOVED" = "no" ]; then
+    echo "Fails to remove database: $DB_SPECS"
+fi
+
+# Remove uxfer extractor
+DESTFILE="@XFER_EXTRACTOR_DIR@/$USERNAME.sh"
+
+source "$WIZARDDIR/r-uxferlog.sh"
