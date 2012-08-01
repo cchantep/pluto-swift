@@ -6,7 +6,7 @@
 # date: 2010-02-09
 #####
 
-echo "Welcome to NOZICAA Hosting Wizard setup ..."
+echo "Welcome to Hosting Wizard setup ..."
 echo "... please provide me some platform dependent settings."
 
 # Sed
@@ -640,7 +640,7 @@ done
 ZIP_CMD="$VALUE"
 
 # OpenDoc templates dir
-DEFAULT="/usr/share/nozicaa-odt"
+DEFAULT="/usr/share/odt"
 QUESTION="Path to OpenDoc templates directory"
 VALUE="x"
 

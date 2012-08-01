@@ -2,7 +2,7 @@
 
 #####
 # brief: Extract information from (FTP) xferlog related to specified user
-# author: Cedric Chantepie (cchantepie@corsaire.fr)
+# author: Cedric Chantepie ()
 # date: 2009-05-13
 #####
 

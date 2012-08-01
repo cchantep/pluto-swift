@@ -2,7 +2,7 @@
 
 #####
 # brief: Removal wizard launcher
-# author: Cedric Chantepie (cchantepie@corsaire.fr)
+# author: Cedric Chantepie ()
 # date: 2010-02-09
 #####
 
@@ -41,7 +41,7 @@ if [ ! -w "$VHOSTFILE" -o ! -r "$VHOSTFILE" ]; then
 fi
 
 # grep information from vhost before removal
-SYSUSER="nozicaa"
+SYSUSER="root"
 USERNAME=`grep 'require user' "$VHOSTFILE" | head -n 1 | "$SED" -e "s/^[ \t]*require[ \t]*user[ \t]*$SYSUSER[ \t]*//;s/[ \t]\$//"`
 DB_SPECS=`grep '#! database:' "$VHOSTFILE" | "$SED" -e 's/^[ \t]*#\![ \t]*database:[ \t]*//;s/[ \t]*$//'`
 

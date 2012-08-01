@@ -1,6 +1,6 @@
 <VirtualHost #SERVERIP#:80>
     ServerName #DOMAIN#
-    ServerAdmin contact@nozicaa.com
+    ServerAdmin your@contact.com
     #SERVER_ALIASES#
 
     DocumentRoot #SITEHOME#/htdocs/
@@ -39,7 +39,7 @@
       AuthName "Statistiques Web #DOMAIN#"
       AuthUserFile /etc/awstats/htpasswd
       AuthType Basic
-      require user nozicaa #USERNAME#
+      require user root #USERNAME#
     </LocationMatch>
 
     <LocationMatch ^/ftpstats/*>
@@ -47,7 +47,7 @@
       AuthName "Statistiques FTP #DOMAIN#"
       AuthUserFile /etc/awstats/htpasswd
       AuthType Basic
-      require user nozicaa #USERNAME#
+      require user root #USERNAME#
     </LocationMatch>
 
     <LocationMatch ^/*>
